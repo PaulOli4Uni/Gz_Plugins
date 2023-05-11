@@ -18,6 +18,10 @@ make
 
 This will generate the 'ProjectName' library under `build`.
 
+export GZ_SIM_SYSTEM_PLUGIN_PATH=<Plugin_location>/build/ 
+^ Above line added to ~/.bashrc file to permanently include, for multiple plugins use:
+export GZ_SIM_SYSTEM_PLUGIN_PATH=<Plugin_location1>/build/:<Plugin_location2>/build/  
+
 ## Run
 
 The plugin must be attached to an entity to be loaded. Therefore the plugin needs to be added to a entity of a .SDF file

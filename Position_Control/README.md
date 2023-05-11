@@ -32,7 +32,11 @@ Before starting Gazebo, we must make sure it can find the plugin by doing:
 ~~~
 cd Gz_Plugins/<Project Folder>
 export GZ_SIM_SYSTEM_PLUGIN_PATH=`pwd`/build 
-^ Above line added to ~/.bashrc file to permanently include 
+
+export GZ_SIM_SYSTEM_PLUGIN_PATH=<Plugin_location>/build/ 
+^ Above line added to ~/.bashrc file to permanently include, for multiple plugins use:
+export GZ_SIM_SYSTEM_PLUGIN_PATH=<Plugin_location1>/build/:<Plugin_location2>/build/  
+ 
 ~~~
 
 ## SDF File Plugin options
