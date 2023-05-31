@@ -56,9 +56,9 @@ class gz::sim::systems::PoseToFilePrivate
   public: bool OnRecordPose(const msgs::VideoRecord &_msg, msgs::Int32 &_res);
 
 /// \brief Callback for the video recorder service
-  public: std::string PoseMessage(const gz::sim::UpdateInfo &_info, const EntityComponentManager &_ecm);
+  public: std::string PoseMessage(const gz::sim::UpdateInfo &_info, const EntityComponentManager &_ecm, double time);
 
-  public: void CheckUpdatePeriod(const gz::sim::UpdateInfo &_info);
+  // public: void CheckUpdatePeriod(const gz::sim::UpdateInfo &_info);
 
 // -------------------------       Variables      ------------------------
 
@@ -81,7 +81,7 @@ class gz::sim::systems::PoseToFilePrivate
   public: std::string file_name;
 
   /// \brief Name of file to store pose info
-  public: std::fstream file;
+  public: std::ofstream file;
 
   /// \brief True when data is being collected (changed in pre/post update due to a service call)
   public: bool data_collecting;
@@ -92,11 +92,13 @@ class gz::sim::systems::PoseToFilePrivate
   /// \brief True when data collecting should finish (from service call)
   public: bool data_stop_collecting;
 
-  /// \brief Time period between pose updates (interval 0 < update_period) [seconds]
-  public: double update_period = 1.0;
+  /// \brief Time period between pose updates (interval: 0 < update_period) [seconds]
+  public: double update_period = 0.1;
+  
+  // todo: add function to update period
 
   /// \brief Sim time when previous pose message was sent
-  public: std::chrono::nanoseconds sim_time_at_previous_pose_update;
+  public: std::chrono::duration<double> sim_time_at_previous_pose_update;
 
 };
 //////////////////////////////////////////////////
@@ -116,7 +118,7 @@ void PoseToFile::Configure(const Entity &_entity,
 
   if (!this->dataPtr->model.Valid(_ecm))
   {
-    gzerr << "Position Controller plugin should be attached to a model entity. "
+    gzerr << "PoseToFile plugin should be attached to a model entity."
           << "Failed to initialize." << std::endl;
     return;
   }
@@ -140,19 +142,22 @@ void PoseToFile::Configure(const Entity &_entity,
     this->dataPtr->service = transport::TopicUtils::AsValidTopic(
         _sdf->Get<std::string>("service"));
 
-    if (this->dataPtr->service.empty())
+    if (this->dataPtr->service.empty()) 
     {
       gzerr << "Service [" << _sdf->Get<std::string>("service")
              << "] not valid. Ignoring." << std::endl;
              return;
     }
-    else 
-    {
-      this->dataPtr->node.Advertise(this->dataPtr->service,
+  }
+  else { // Provide default service name if none is provided
+    this->dataPtr->service = transport::TopicUtils::AsValidTopic(
+      "/model/" + this->dataPtr->model.Name(_ecm) + "/PoseToFile"
+    );
+  }
+  this->dataPtr->node.Advertise(this->dataPtr->service, // Start service
        &PoseToFilePrivate::OnRecordPose, this->dataPtr.get());
       gzmsg << "Record pose service on [" << this->dataPtr->service << "]" << std::endl;
-    }
-  }
+
   
   
   
@@ -184,32 +189,22 @@ void PoseToFile::PreUpdate(const gz::sim::UpdateInfo &_info,
   if (this->dataPtr->data_start_collect) // Start collecting data
   {
     // Opens file in append and truncating mode (Clears all content if any is present, and then start appending new info)
-    this->dataPtr->file.open(this->dataPtr->file_name, std::ios::trunc | std::ios::app);
+    this->dataPtr->file.open(this->dataPtr->file_name);
     //this->dataPtr->file.close();
     
     this->dataPtr->data_collecting = true;// Start data_collect bool
     
     gzmsg << " Started collecting data. Update period of: " << this->dataPtr->update_period << std::endl;
+    
+
+    // Collect first datapoint
+    this->dataPtr->file << this->dataPtr->PoseMessage(_info, _ecm, 0); // Add pose at t=0
+    this->dataPtr->file.close(); // Close file (file will be appended on each update to protect against data loss (such as closing gazebo without saving))
+    this->dataPtr->sim_time_at_previous_pose_update = _info.simTime;
     this->dataPtr->data_start_collect = false;
   }
 
-  // Calc update interval -> On topic receive and at configure
-
-  // Data collecting before start collect (as there should be a time between )
-  if (this->dataPtr->data_collecting)
-  {
-    if (true) // Check if next update time reached
-    {
-      
-      //this->dataPtr->file.open(this->dataPtr->file_name, std::ios::app);
-      
-      std::string text = this->dataPtr->PoseMessage(_info, _ecm);
-      this->dataPtr->file >> text;
-      gzmsg << text << std::endl;
-      //this->dataPtr->file.close();
-    }
-  }
-  
+  // Calc update interval -> On topic receive and at configure  
 }
 
 //////////////////////////////////////////////////
@@ -221,15 +216,37 @@ void PoseToFile::PostUpdate(const UpdateInfo &_info,
   if (_info.paused)
     return;
   
+  std::chrono::duration<double> sim_time = _info.simTime;
+  double time_elapsed = sim_time.count() - this->dataPtr->sim_time_at_previous_pose_update.count();
+
   if (this->dataPtr->data_stop_collecting)
   {
     this->dataPtr->data_collecting = false;//Stop data collect bool
-    this->dataPtr->file << this->dataPtr->PoseMessage(_info, _ecm); // Add last pose info
+    this->dataPtr->file.open(this->dataPtr->file_name, std::ios::app);
+    // Todo: Calculate final time
+
+    this->dataPtr->file << this->dataPtr->PoseMessage(_info, _ecm, time_elapsed); // Add last pose info
     this->dataPtr->file.close();// Close file
 
-    //this->dataPtr->
     gzmsg << " Stopped collecting data. Stored in file: " << this->dataPtr->file_name << std::endl;
     this->dataPtr->data_stop_collecting = false;
+  }
+
+  
+  if (this->dataPtr->data_collecting) // Busy collecting data
+  {
+    time_elapsed = std::round(time_elapsed*1000)/1000.0; // Round to nearset millisecond (remove epsilon error)
+    
+    if (time_elapsed == this->dataPtr->update_period) // Check if next update time reached
+    {
+      gzmsg << "In loop";
+      this->dataPtr->sim_time_at_previous_pose_update = _info.simTime;
+      this->dataPtr->file.open(this->dataPtr->file_name, std::ios::app);
+      
+      
+      this->dataPtr->file << this->dataPtr->PoseMessage(_info, _ecm, time_elapsed);
+      this->dataPtr->file.close();
+    }
   }
 
 }
@@ -257,7 +274,7 @@ bool PoseToFilePrivate::OnRecordPose(const msgs::VideoRecord &_msg, msgs::Int32 
       this->file_name = file_name;
     }
 
-  // Data Start/Stop Collecting always start as a false
+  // Initialise Data Start/Stop Collecting as false
   this->data_start_collect = false; this->data_stop_collecting = false;
 
   if (_msg.start())
@@ -287,7 +304,7 @@ bool PoseToFilePrivate::OnRecordPose(const msgs::VideoRecord &_msg, msgs::Int32 
   return true;
 }
 
-std::string PoseToFilePrivate::PoseMessage(const gz::sim::UpdateInfo &_info, const EntityComponentManager &_ecm)
+std::string PoseToFilePrivate::PoseMessage(const gz::sim::UpdateInfo &_info, const EntityComponentManager &_ecm, double time)
 {
   auto pos = _ecm.Component<components::Pose>(this->model.Entity());
   const math::Pose3d rawPose = worldPose(this->model.Entity(), _ecm);
@@ -295,29 +312,31 @@ std::string PoseToFilePrivate::PoseMessage(const gz::sim::UpdateInfo &_info, con
   std::string pose_msg = std::to_string(pose.Pos().X()) + "," +
       std::to_string(pose.Pos().Y()) + "," + std::to_string(pose.Pos().Z()) + "," +
       std::to_string(pose.Rot().Roll()) + "," + std::to_string(pose.Rot().Pitch()) + "," +
-      std::to_string(pose.Rot().Yaw()) + "," + std::to_string(this->update_period) + "\n";
+      std::to_string(pose.Rot().Yaw()) + "," + std::to_string(time) + "\n";
+  // std::to_string(pose.Rot().Yaw()) + "," + std::to_string(this->update_period) + "\n";
   return pose_msg;
 }
 
-void PoseToFilePrivate::CheckUpdatePeriod(const gz::sim::UpdateInfo &_info)
-{
-  // Get Time step size (Note that duration has to be parsed to a double)
-  std::chrono::duration<double> e = _info.dt;
-  double step_size = e.count(); 
+// void PoseToFilePrivate::CheckUpdatePeriod(const gz::sim::UpdateInfo &_info)
+// {
+//   // Get Time step size (Note that duration has to be parsed to a double)
+//   std::chrono::duration<double> e = _info.dt;
+//   double step_size = e.count(); 
   
-  if (this->update_period < step_size)
-  {
-    this->update_period = step_size;
-    gzerr << "Update period too small. Period set to fit current step size. New period = " << update_period << std::endl;
-  }
-  else if ( std::fmod(this->update_period,step_size) != 0)
-  {
-    // Round down to nearest multiple of step size:
-    // Round_Down(Number/round_value) * round_value -> where round_value is the number you want to round to -> this case step size
-    this->update_period = std::floor(this->update_period/step_size) * step_size;
-    gzerr << "Update period not a multiple of step size. Period rounded to nearest step size multiple. New period = " << update_period << std::endl;
-  }
-}
+//   if (this->update_period < step_size)
+//   {
+//     this->update_period = step_size;
+//     gzerr << "Update period too small. Period set to fit current step size. New period = " << update_period << std::endl;
+//   }
+//   else if ( std::fmod(this->update_period,step_size) != 0)
+//   {
+//     // Round down to nearest multiple of step size:
+//     // Round_Down(Number/round_value) * round_value -> where round_value is the number you want to round to -> this case step size
+//     this->update_period = std::floor(this->update_period/step_size) * step_size;
+//     gzerr << "Update period not a multiple of step size. Period rounded to nearest step size multiple. New period = " << update_period << std::endl;
+//   }
+// }
+
 //////////////////////////////////////////////////
 
 GZ_ADD_PLUGIN(PoseToFile,

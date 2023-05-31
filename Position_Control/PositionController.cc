@@ -410,6 +410,11 @@ bool PositionControllerPrivate::ErrorCheckPoseMsg(const std::string message)
     return false;
   }
 
+  if (msg_vector[6] <= 0){
+    gzerr << "Time value must be larger than zero";
+    return false;
+  }
+
   return true;
 }
 

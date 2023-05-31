@@ -1,4 +1,4 @@
-# Install script for directory: /home/paul/Gz_Plugins/Position_Control
+# Install script for directory: /home/stb21753492/Gz_Plugins/Position_Control
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -50,5 +50,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/paul/Gz_Plugins/Position_Control/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/stb21753492/Gz_Plugins/Position_Control/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
