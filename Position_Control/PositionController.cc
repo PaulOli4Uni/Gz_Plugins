@@ -246,7 +246,7 @@ void PositionController::Configure(const Entity &_entity,
         << std::endl;
 
   // ------- Setup Publishing Topic
-  std::string topic_name = "lll";
+  std::string topic_name = "/model/" + this->dataPtr->model.Name(_ecm) + "/move_fin";
   gzmsg << "Contact system publishing on " << topic_name << std::endl;
   this->dataPtr->pub = this->dataPtr->node.Advertise<msgs::Boolean>(topic_name);
 
@@ -477,7 +477,7 @@ void PositionControllerPrivate::UpdateTargets(const std::string message)
     }
 
   // Degrees converted to radians
-  this->pose_target.Set(msg_vector[0], msg_vector[1], msg_vector[2], msg_vector[3]*(M_PIl/180), msg_vector[4]*(M_PIl/180), msg_vector[5]*(M_PIl/180));
+  this->pose_target.Set(msg_vector[0]+this->pose_offset.X(), msg_vector[1]+this->pose_offset.Y(), msg_vector[2]+this->pose_offset.Z(), msg_vector[3]*(M_PIl/180), msg_vector[4]*(M_PIl/180), msg_vector[5]*(M_PIl/180));
   this->time_target = msg_vector[6];
   this->apply_wrench = true;
 }
@@ -507,8 +507,9 @@ void PositionControllerPrivate::UpdateWrench(const gz::sim::UpdateInfo &_info, c
 
   // Get and set robotBaseFrame to odom transformation.
 
-  const math::Pose3d rawPose = worldPose(this->model.Entity(), _ecm);
-  math::Pose3d pose = rawPose * this->pose_offset;
+  const math::Pose3d pose = worldPose(this->model.Entity(), _ecm);
+  // const math::Pose3d rawPose = worldPose(this->model.Entity(), _ecm);
+  // math::Pose3d pose = rawPose * this->pose_offset;
 
 
   /* -----------------

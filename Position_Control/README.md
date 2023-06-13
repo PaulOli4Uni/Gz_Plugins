@@ -76,6 +76,9 @@ gz model -m "box" -p
 -Send file with Pose messages
 gz topic -t /file -m gz.msgs.StringMsg -p 'data:"/home/paul/Gz_Plugins/Position_Control/pose_file2.txt"'
 
+-View Publisher movement finished
+gz topic -e -t /model/<model_name>/move_fin 
+
 
 ## Terminal messages if no topic name provided (Generic)
 gz topic -t /model/<model_name>/pos_contr -m gz.msgs.StringMsg -p 'data:"0,0,2,170,50,170,1"'
