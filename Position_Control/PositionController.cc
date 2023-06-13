@@ -247,7 +247,7 @@ void PositionController::Configure(const Entity &_entity,
 
   // ------- Setup Publishing Topic
   std::string topic_name = "/model/" + this->dataPtr->model.Name(_ecm) + "/move_fin";
-  gzmsg << "Contact system publishing on " << topic_name << std::endl;
+  gzmsg << "Movement Finished publishing on " << topic_name << std::endl;
   this->dataPtr->pub = this->dataPtr->node.Advertise<msgs::Boolean>(topic_name);
 
   if (_sdf->HasElement("xyz_offset"))
