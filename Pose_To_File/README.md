@@ -32,3 +32,7 @@ Before starting Gazebo, we must make sure it can find the plugin by doing:
 ## Example Service Terminal Command
 
 gz service -s /pose_to_file --timeout 2000 --reqtype gz.msgs.VideoRecord --reptype gz.msgs.Int32 --req 'start:true, save_filename:"/home/paul/Gz_Plugins/Pose_To_File/name.txt"'
+
+# Command if service not provided in sdf
+gz service -s /model.<model_name>/pose_to_file --timeout 2000 --reqtype gz.msgs.VideoRecord --reptype gz.msgs.Int32 --req 'start:true, save_filename:"/home/paul/Gz_Plugins/Pose_To_File/name.txt"'
+

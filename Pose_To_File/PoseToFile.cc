@@ -239,7 +239,6 @@ void PoseToFile::PostUpdate(const UpdateInfo &_info,
     
     if (time_elapsed == this->dataPtr->update_period) // Check if next update time reached
     {
-      gzmsg << "In loop";
       this->dataPtr->sim_time_at_previous_pose_update = _info.simTime;
       this->dataPtr->file.open(this->dataPtr->file_name, std::ios::app);
       
