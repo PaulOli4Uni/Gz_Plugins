@@ -477,6 +477,8 @@ void PositionControllerPrivate::UpdateTargets(const std::string message)
     }
 
   // Degrees converted to radians
+  // todo: Add RPY offset
+
   this->pose_target.Set(msg_vector[0]+this->pose_offset.X(), msg_vector[1]+this->pose_offset.Y(), msg_vector[2]+this->pose_offset.Z(), msg_vector[3]*(M_PIl/180), msg_vector[4]*(M_PIl/180), msg_vector[5]*(M_PIl/180));
   this->time_target = msg_vector[6];
   this->apply_wrench = true;
