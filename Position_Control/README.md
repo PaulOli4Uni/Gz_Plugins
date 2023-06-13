@@ -8,6 +8,8 @@ Plugin is used to move a model to a desired location and orientation. Individual
 Model will keep moving in a direction until it reaches the desired pose or new pose instructions are received 
 (Pose instructions have to be valid for new movement to occur)
 
+When last destination of pose message/file is reached. A 'true' message will be published
+
 
 ## Building Project
 
@@ -62,7 +64,7 @@ Format > Text <
     Format > 0.0 0.0 0.0 < 
 
 
-## Terminal messages that might     be needed (Spesific to testing)
+## Terminal messages that might be needed (Spesific to testing)
 For both messages 'box' can be substituted to a different model name
 
 -Send a Pose message
@@ -76,15 +78,13 @@ gz topic -t /file -m gz.msgs.StringMsg -p 'data:"/home/paul/Gz_Plugins/Position_
 
 
 ## Terminal messages if no topic name provided (Generic)
-gz topic -t /box/pos_contr -m gz.msgs.StringMsg -p 'data:"0,0,2,170,50,170,1"'
-gz topic -t /box/file_pos_contr -m gz.msgs.StringMsg -p 'data:"filename"'
+gz topic -t /model/<model_name>/pos_contr -m gz.msgs.StringMsg -p 'data:"0,0,2,170,50,170,1"'
+gz topic -t /model/<model_name>/file_pos_contr -m gz.msgs.StringMsg -p 'data:"filename"'
 
 ## SDF File -> Checklist
 
 Ensure that link pose is set to <0 0 0 0 0 0> relative to the model pose
 Ensure that mass is set to 1kg and Ix , Iy and Iz is also 1 (kg.m2)
-
-
 
 ## Other Messages
 --Record Video

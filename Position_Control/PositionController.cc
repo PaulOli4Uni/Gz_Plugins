@@ -38,6 +38,7 @@
 #include <gz/msgs/vector3d.pb.h>
 #include <gz/msgs/header.pb.h>
 #include <gz/msgs/Utility.hh>
+#include <gz/msgs/boolean.pb.h>
 
 #include <gz/math/Vector3.hh>
 #include <gz/math/Pose3.hh>
@@ -74,6 +75,9 @@ class gz::sim::systems::PositionControllerPrivate
   /// \brief Callback for file with wrench info subscription
   /// \param[in] _msg String message (Containing File name)
   public: void OnFilePub(const msgs::StringMsg &_msg);
+
+  /// \brief Momement Complete Publisher
+  public: void PubMovementComp();
 
   /// \brief Loads the provided file (with pose instructions). Returns true if file loaded successfully 
   /// \param[in] filename String containing the filename
@@ -164,6 +168,10 @@ class gz::sim::systems::PositionControllerPrivate
   // -------------------------------------- Publisher Nodes
   /// \brief Gazebo communication node.
   public: transport::Node node;
+
+  /// \brief Gazebo publisher node.
+  public: transport::Node::Publisher pub;
+
 };
 
 //////////////////////////////////////////////////
@@ -237,6 +245,10 @@ void PositionController::Configure(const Entity &_entity,
         << modelT_file_subscriber << "]"
         << std::endl;
 
+  // ------- Setup Publishing Topic
+  std::string topic_name = "lll";
+  gzmsg << "Contact system publishing on " << topic_name << std::endl;
+  this->dataPtr->pub = this->dataPtr->node.Advertise<msgs::Boolean>(topic_name);
 
   if (_sdf->HasElement("xyz_offset"))
   {
@@ -302,12 +314,23 @@ void PositionController::PreUpdate(const gz::sim::UpdateInfo &_info,
 
     this->dataPtr->wrench_force.Set(0,0,0); this->dataPtr->wrench_torque.Set(0,0,0); // Reset Force Amounts
 
+    if (this->dataPtr->on_topic_pose) // Destination reached from pose topic
+    {
+      this->dataPtr->on_topic_pose = false;
+      this->dataPtr->PubMovementComp();
+    }
+
     // Currently reading pose from a file
     if (this->dataPtr->on_topic_file)
     {
-      this->dataPtr->UpdateFileLine();
-    }
+      this->dataPtr->UpdateFileLine(); // Turns on_topic_file false if last line reached
 
+      if (!this->dataPtr->on_topic_file)
+      {
+        this->dataPtr->PubMovementComp();
+      }
+
+    }    
   }
 
 }
@@ -344,6 +367,13 @@ void PositionControllerPrivate::OnFilePub(const msgs::StringMsg &_msg)
     this->on_topic_file = true; this->on_topic_pose = false;
     PositionControllerPrivate::UpdateFileLine();
   }
+}
+
+void PositionControllerPrivate::PubMovementComp()
+{
+  msgs::Boolean msg;
+  msg.set_data(true);
+  this->pub.Publish(msg);
 }
 
 bool PositionControllerPrivate::FileLoad(const std::string filename)
